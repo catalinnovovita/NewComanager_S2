@@ -117,7 +117,7 @@ export default function ProductsPage() {
           <CardContent className="py-12 text-center">
             <ShoppingBag className="w-12 h-12 text-blue-400 mx-auto mb-4" />
             <p className="text-white text-lg font-medium">No products found</p>
-            <p className="text-blue-200 text-sm mt-2">Mock data should be available</p>
+            <p className="text-blue-200 text-sm mt-2">Sync products from your Shopify store</p>
           </CardContent>
         </Card>
       )}

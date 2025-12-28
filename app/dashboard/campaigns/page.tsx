@@ -225,7 +225,7 @@ export default function CampaignsPage() {
             <CardContent className="py-12 text-center">
               <BarChart3 className="w-12 h-12 text-blue-400 mx-auto mb-4" />
               <p className="text-white text-lg font-medium">No campaigns found</p>
-              <p className="text-blue-200 text-sm mt-2">Mock data should be available</p>
+              <p className="text-blue-200 text-sm mt-2">Launch a new campaign to see stats</p>
             </CardContent>
           </Card>
         )}
