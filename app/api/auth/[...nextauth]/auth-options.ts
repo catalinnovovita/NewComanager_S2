@@ -86,5 +86,7 @@ export const authOptions: NextAuthOptions = {
       return baseUrl;
     },
   },
+  debug: true, // Enable debugging to see detailed logs in Railway
+  trustHost: true, // Trust the host header (important behind proxies like Railway)
   secret: process.env.NEXTAUTH_SECRET,
 };
