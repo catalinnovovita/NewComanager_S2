@@ -168,17 +168,57 @@ If a tool fails (e.g. missing credentials), explain that to the user clearly.
                 }
             }
 
+            // Helper to format data as Markdown Table
+            function formatDataAsMarkdown(toolName: string, data: any): string {
+                if (!data || (Array.isArray(data) && data.length === 0)) return 'No data found.';
+
+                if (toolName === 'get_products' && Array.isArray(data)) {
+                    let md = '| Product | Status | Price | Inventory |\n|---|---|---|---|\n';
+                    data.forEach((p: any) => {
+                        md += `| ${p.title} | ${p.status} | ${p.price} ${p.currency} | ${p.inventory} |\n`;
+                    });
+                    return md;
+                }
+
+                if (toolName === 'get_latest_orders' && Array.isArray(data)) {
+                    let md = '| Order | Date | Customer | Total | Status |\n|---|---|---|---|---|\n';
+                    data.forEach((o: any) => {
+                        md += `| ${o.name} | ${new Date(o.createdAt).toLocaleDateString()} | ${o.customer?.firstName} ${o.customer?.lastName} | ${o.totalPrice} ${o.currency} | ${o.financialStatus} |\n`;
+                    });
+                    return md;
+                }
+
+                if (toolName === 'get_shop_stats') {
+                    return `
+### Shop Status
+- **Name**: ${data.name}
+- **Domain**: ${data.domain}
+- **Currency**: ${data.currency}
+- **Email**: ${data.email}
+`;
+                }
+
+                return JSON.stringify(data, null, 2);
+            }
+
+            // ... inside streamTechnicalChat ...
+
             let result = '';
+            let rawData: any = null;
             try {
                 if (toolName === 'get_products') {
-                    result = JSON.stringify(await getProducts(args.limit));
+                    rawData = await getProducts(args.limit);
                 } else if (toolName === 'get_latest_orders') {
-                    result = JSON.stringify(await getLatestOrders(args.limit));
+                    rawData = await getLatestOrders(args.limit);
                 } else if (toolName === 'get_shop_stats') {
-                    result = JSON.stringify(await getShopStats());
+                    rawData = await getShopStats();
                 } else {
-                    result = `Error: Tool ${toolName} not found`;
+                    return `Error: Tool ${toolName} not found`;
                 }
+
+                // Format the output for the user
+                result = formatDataAsMarkdown(toolName, rawData);
+
             } catch (err: any) {
                 console.error(`Tool execution failed (${toolName}):`, err);
                 result = `Error executing tool: ${err.message}`;
