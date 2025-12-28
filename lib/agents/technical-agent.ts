@@ -127,16 +127,20 @@ If a tool fails (e.g. missing credentials), explain that to the user clearly.
 
     return OpenAIStream(response as any, {
         experimental_onToolCall: async (call: any, { messages }: any) => {
+            console.log('Server Tool Call RAW:', JSON.stringify(call, null, 2));
+
             // Handle OpenAI tool call structure: { id, type, function: { name, arguments } }
-            const toolName = call.function?.name || call.tool?.name || call.name;
+            // Added check for 'func' based on logs
+            let toolName = call.function?.name || call.tool?.name || call.name;
+            if (!toolName && call.func?.name) toolName = call.func.name;
 
             if (!toolName) {
-                console.error('Unknown tool call structure:', call);
+                console.error('Unknown tool call structure - Missing Name:', call);
                 return 'Error: Could not determine tool name';
             }
 
             // Arguments parsing
-            let args = call.function?.arguments || call.tool?.arguments || call.arguments || {};
+            let args = call.function?.arguments || call.tool?.arguments || call.arguments || call.func?.arguments || {};
             if (typeof args === 'string') {
                 try {
                     args = JSON.parse(args);
