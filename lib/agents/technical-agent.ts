@@ -29,15 +29,23 @@ When writing code:
 - Ensure type safety.
 `;
 
+import { constructProjectContext } from './context-service';
+
 export async function streamTechnicalChat(messages: any[]) {
+    // Inject dynamic context
+    const projectContext = await constructProjectContext();
+
+    // Combine robust system prompt with live context
+    const systemMessage = \`\${TECHNICAL_AGENT_SYSTEM_PROMPT}\n\n\${projectContext}\`;
+
     const response = await openai.chat.completions.create({
-        model: 'gpt-4-turbo-preview', // Or gpt-4o if available/preferred
+        model: 'gpt-4o', // Upgraded to smarter model for context handling
         stream: true,
         messages: [
-            { role: 'system', content: TECHNICAL_AGENT_SYSTEM_PROMPT },
+            { role: 'system', content: systemMessage },
             ...messages,
         ],
-        temperature: 0.2, // Lower temperature for more precise technical output
+        temperature: 0.2,
     });
 
     return OpenAIStream(response as any);
