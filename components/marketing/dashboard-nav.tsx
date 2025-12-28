@@ -14,15 +14,29 @@ import {
   LogOut,
   Brain,
   Terminal,
+  Sparkles,
 } from 'lucide-react';
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+  {
+    name: 'AI Terminals',
+    type: 'separator',
+  },
+  { name: 'Marketing AI', href: '/dashboard/marketing', icon: Sparkles },
+  { name: 'Technical AI', href: '/dashboard/technical', icon: Terminal },
+  {
+    name: 'Marketing Tools',
+    type: 'separator',
+  },
   { name: 'Briefs', href: '/dashboard/briefs', icon: FileText },
   { name: 'Campaigns', href: '/dashboard/campaigns', icon: BarChart3 },
   { name: 'Content Ideas', href: '/dashboard/content', icon: Lightbulb },
+  {
+    name: 'Store',
+    type: 'separator',
+  },
   { name: 'Products', href: '/dashboard/products', icon: ShoppingBag },
-  { name: 'Technical AI', href: '/dashboard/technical', icon: Terminal },
 ];
 
 export function DashboardNav() {
