@@ -13,6 +13,7 @@ import {
   ShoppingBag,
   LogOut,
   Brain,
+  Terminal,
 } from 'lucide-react';
 
 const navigation = [
@@ -21,6 +22,7 @@ const navigation = [
   { name: 'Campaigns', href: '/dashboard/campaigns', icon: BarChart3 },
   { name: 'Content Ideas', href: '/dashboard/content', icon: Lightbulb },
   { name: 'Products', href: '/dashboard/products', icon: ShoppingBag },
+  { name: 'Technical AI', href: '/dashboard/technical', icon: Terminal },
 ];
 
 export function DashboardNav() {
