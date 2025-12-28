@@ -9,7 +9,9 @@ export async function shopifyGraphQL(query: string, variables?: any) {
     );
   }
 
-  const endpoint = `https://${domain}/admin/api/${apiVersion}/graphql.json`;
+  // Ensure domain doesn't have protocol
+  const cleanDomain = domain.replace(/^https?:\/\//, '').replace(/\/$/, '');
+  const endpoint = `https://${cleanDomain}/admin/api/${apiVersion}/graphql.json`;
 
   try {
     const response = await fetch(endpoint, {
