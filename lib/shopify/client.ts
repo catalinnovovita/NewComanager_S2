@@ -3,13 +3,13 @@ const accessToken = process.env.SHOPIFY_ACCESS_TOKEN;
 const apiVersion = '2024-01'; // Use latest stable version
 
 export async function shopifyGraphQL(query: string, variables?: any) {
-    if (!domain || !accessToken) {
-        throw new Error(
-            'Missing Shopify credentials. Please set SHOPIFY_STORE_DOMAIN and SHOPIFY_ACCESS_TOKEN.'
-        );
-    }
+  if (!domain || !accessToken) {
+    throw new Error(
+      'Missing Shopify credentials. Please set SHOPIFY_STORE_DOMAIN and SHOPIFY_ACCESS_TOKEN.'
+    );
+  }
 
-    const endpoint = \`https://\${domain}/admin/api/\${apiVersion}/graphql.json\`;
+  const endpoint = `https://${domain}/admin/api/${apiVersion}/graphql.json`;
 
   try {
     const response = await fetch(endpoint, {
