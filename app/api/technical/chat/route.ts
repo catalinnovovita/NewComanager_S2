@@ -8,13 +8,14 @@ export async function POST(req: Request) {
     try {
         const session = await getServerSession(authOptions);
 
-        if (!session) {
+        if (!session?.user) {
             return new NextResponse('Unauthorized', { status: 401 });
         }
 
         const { messages } = await req.json();
 
-        const stream = await streamTechnicalChat(messages, session.user.id);
+        // Safe cast as our auth options ensure id exists
+        const stream = await streamTechnicalChat(messages, (session.user as any).id);
 
         return new StreamingTextResponse(stream);
     } catch (error) {
