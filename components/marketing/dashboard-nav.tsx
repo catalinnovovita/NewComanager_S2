@@ -68,6 +68,7 @@ export function DashboardNav() {
           }
 
           const isActive = pathname === item.href;
+          const Icon = item.icon;
           return (
             <Link
               key={item.name}
@@ -79,7 +80,7 @@ export function DashboardNav() {
                   : 'text-blue-200 hover:bg-white/10'
               )}
             >
-              <item.icon className="w-5 h-5" />
+              {Icon && <Icon className="w-5 h-5" />}
               <span className="font-medium">{item.name}</span>
             </Link>
           );
