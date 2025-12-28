@@ -42,12 +42,22 @@ export function DashboardNav() {
       </div>
 
       <nav className="flex-1 p-4 space-y-1">
-        {navigation.map((item) => {
+        {navigation.map((item, index) => {
+          if (item.type === 'separator') {
+            return (
+              <div key={`separator-${index}`} className="pt-4 pb-2">
+                <p className="px-4 text-xs font-semibold text-blue-400/60 uppercase tracking-wider">
+                  {item.name}
+                </p>
+              </div>
+            );
+          }
+
           const isActive = pathname === item.href;
           return (
             <Link
               key={item.name}
-              href={item.href}
+              href={item.href!}
               className={cn(
                 'flex items-center gap-3 px-4 py-3 rounded-lg transition-all',
                 isActive
