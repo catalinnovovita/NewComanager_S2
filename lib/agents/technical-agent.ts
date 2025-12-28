@@ -129,27 +129,29 @@ If a tool fails (e.g. missing credentials), explain that to the user clearly.
         experimental_onToolCall: async (call: any, { messages }: any) => {
             console.log('Server Tool Call RAW:', JSON.stringify(call, null, 2));
 
+            let toolCallObject = call;
+
+            // Check for nested tools array (which contains the actual tool call)
+            if (call.tools && Array.isArray(call.tools) && call.tools.length > 0) {
+                toolCallObject = call.tools[0];
+            }
+
             // Handle OpenAI tool call structure: { id, type, function: { name, arguments } }
             // Added check for 'func' based on logs
-            let toolName = call.function?.name || call.tool?.name || call.name;
+            let toolName = toolCallObject.function?.name || toolCallObject.tool?.name || toolCallObject.name;
 
             // Explicitly check for 'func' property which appeared in logs
-            if (!toolName && 'func' in call) {
-                // @ts-ignore
-                if (call.func && call.func.name) {
-                    // @ts-ignore
-                    toolName = call.func.name;
-                }
+            if (!toolName && toolCallObject.func?.name) {
+                toolName = toolCallObject.func.name;
             }
 
             if (!toolName) {
                 console.error('Unknown tool call structure - Missing Name:', call);
-                // Last ditch effort: try to see if it's nested differently or if we missed a spot
                 return 'Error: Could not determine tool name';
             }
 
             // Arguments parsing
-            let args = call.function?.arguments || call.tool?.arguments || call.arguments || call.func?.arguments || {};
+            let args = toolCallObject.function?.arguments || toolCallObject.tool?.arguments || toolCallObject.arguments || toolCallObject.func?.arguments || {};
             if (typeof args === 'string') {
                 try {
                     args = JSON.parse(args);
