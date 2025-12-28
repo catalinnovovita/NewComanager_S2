@@ -1,6 +1,6 @@
 import { shopifyGraphQL } from './client';
 
-export async function getProducts(limit = 5) {
+export async function getProducts(limit = 10) {
   const query = `
     query getProducts($limit: Int!) {
       products(first: $limit) {
@@ -8,9 +8,17 @@ export async function getProducts(limit = 5) {
           node {
             id
             title
-            handle
-            status
+            description
+            productType
             totalInventory
+            status
+            images(first: 1) {
+              edges {
+                node {
+                  url
+                }
+              }
+            }
             priceRangeV2 {
               minVariantPrice {
                 amount
@@ -28,9 +36,12 @@ export async function getProducts(limit = 5) {
   return data.products.edges.map((edge: any) => ({
     id: edge.node.id,
     title: edge.node.title,
+    description: edge.node.description,
+    category: edge.node.productType,
     status: edge.node.status,
     inventory: edge.node.totalInventory,
-    price: edge.node.priceRangeV2.minVariantPrice.amount,
+    imageUrl: edge.node.images?.edges[0]?.node?.url || '',
+    price: parseFloat(edge.node.priceRangeV2.minVariantPrice.amount),
     currency: edge.node.priceRangeV2.minVariantPrice.currencyCode,
   }));
 }
