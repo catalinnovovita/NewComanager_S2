@@ -1,0 +1,156 @@
+// AI COMANAGER - Marketing AI Terminal Database Schema
+// PostgreSQL with pgvector extension for semantic search
+
+generator client {
+    provider = "prisma-client-js"
+    binaryTargets = ["native", "linux-musl-arm64-openssl-3.0.x"]
+    previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+    provider = "postgresql"
+    url      = env("DATABASE_URL")
+    extensions = [vector]
+}
+
+// NextAuth.js Models
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  password      String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  accounts          Account[]
+  sessions          Session[]
+  marketingBriefs   MarketingBrief[]
+  campaigns         Campaign[]
+  contextMemories   ContextMemory[]
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// Marketing AI Models
+model MarketingBrief {
+  id              String   @id @default(cuid())
+  userId          String
+  title           String
+  objective       String   @db.Text
+  targetAudience  String   @db.Text
+  budget          Float
+  deadline        DateTime
+  strategy        String?  @db.Text
+  channels        String[] // ["meta", "google", "email"]
+  timeline        String?  @db.Text
+  kpis            String?  @db.Text
+  status          String   @default("draft") // draft, active, completed
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  campaigns Campaign[]
+
+  @@index([userId])
+  @@index([status])
+}
+
+model Campaign {
+  id          String    @id @default(cuid())
+  userId      String
+  briefId     String?
+  name        String
+  platform    String    // meta, google, email, shopify
+  budget      Float
+  spent       Float     @default(0)
+  impressions Int       @default(0)
+  clicks      Int       @default(0)
+  conversions Int       @default(0)
+  roi         Float     @default(0)
+  status      String    @default("active") // draft, active, paused, completed
+  startDate   DateTime
+  endDate     DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  user  User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  brief MarketingBrief? @relation(fields: [briefId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([briefId])
+  @@index([platform])
+  @@index([status])
+}
+
+// Vector Store for Semantic Search (RAG)
+// Note: Using String for embeddings as pgvector extension is not available
+// Will be migrated to proper vector type when pgvector is enabled
+model ContextMemory {
+  id          String   @id @default(cuid())
+  userId      String
+  contentType String   // brief, campaign, insight, product
+  contentText String   @db.Text
+  embedding   Unsupported("vector(1536)")? // OpenAI text-embedding-3-small (1536 dims)
+  metadata    Json?    // Flexible JSON for any additional data
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([contentType])
+}
+
+// Mock Shopify Products
+model ShopifyProduct {
+  id          String   @id @default(cuid())
+  title       String
+  description String?  @db.Text
+  price       Float
+  inventory   Int      @default(0)
+  imageUrl    String?
+  salesCount  Int      @default(0)
+  category    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([salesCount])
+  @@index([category])
+}
