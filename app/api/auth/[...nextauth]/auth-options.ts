@@ -86,6 +86,6 @@ export const authOptions: NextAuthOptions = {
       return baseUrl;
     },
   },
-  debug: true, // Enable debugging to see detailed logs in Railway
+  debug: false,
   secret: process.env.NEXTAUTH_SECRET,
 };
