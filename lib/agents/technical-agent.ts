@@ -79,14 +79,31 @@ const tools = [
     },
 ];
 
-export async function streamTechnicalChat(messages: any[]) {
+import { recallContext, rememberInteraction } from '@/lib/memory/service';
+
+export async function streamTechnicalChat(messages: any[], userId: string) {
+    // 1. Context: Project Structure
     const projectContext = await constructProjectContext();
 
+    // 2. Context: Memory (RAG)
+    const lastUserMessage = messages.slice().reverse().find(m => m.role === 'user')?.content || '';
+    let memoryContext = '';
+
+    if (lastUserMessage && userId) {
+        try {
+            memoryContext = await recallContext(userId, lastUserMessage);
+        } catch (e) {
+            console.error('Failed to recall context:', e);
+        }
+    }
+
     // Append tool instructions to system prompt
-    const systemMessage = `\${TECHNICAL_AGENT_SYSTEM_PROMPT}
+    const systemMessage = `${TECHNICAL_AGENT_SYSTEM_PROMPT}
 
 [PROJECT CONTEXT]
-\${projectContext}
+${projectContext}
+
+${memoryContext}
 
 [INTEGRATIONS]
 You have access to the Shopify Storefront via tools.
@@ -108,66 +125,53 @@ If a tool fails (e.g. missing credentials), explain that to the user clearly.
         temperature: 0.2,
     });
 
-    // Note: The Vercel AI SDK (OpenAIStream) handles tool calls automatically 
-    // IF we use the experimental_onToolCall callback, but for simplicity with the stable version, 
-    // we are letting the model stream the function call, which the client needs to handle or we need to handle server-side.
-    // However, strictly server-side tool execution in a stream require a multi-step loop.
-    // For this MVP, we will rely on the fact that if the model wants to call a tool, 
-    // it will output the function call JSON. 
-    // To keep it robust, we should really use the `ai` SDK's helper functions if available.
-
-    // Since we are using standard OpenAIStream, it streams text. 
-    // To support server-side execution, we'd need to buffer the response, check for tool_calls, execute, and re-prompt.
-    // For now, let's stick to text-based or let the client see the JSON? 
-    // Actually, `ai` SDK 3.x+ simplifies this with `streamText` and `tools` object.
-    // But since we downgraded to `ai` 2.x/3.0 legacy for stability, we might need a simpler approach:
-    // We will NOT execute the tool server-side in this stream for now to avoid the "loop hell".
-    // Instead, we will tell the agent: "You have tools, but for this version, just Write the Code to use them or explain what you would do."
-    // WAIT - The user wants REAL integration ("The Arms").
-
-    // Let's refactor to use the standard "Chat Completion" (non-streaming) for the first turn if tools are involved?
-    // No, streaming is better.
-
-    // BETTER APPROACH for Legacy SDK:
-    // We use `experimental_onToolCall` provided by OpenAIStream if supported, OR we implement a simple loop.
-
-    // Given the constraints and the goal to be "Impressive", I will enable the tools definition 
-    // but the actual execution in a widely compatible way often requires the `ai` SDK's newer set (useChat tools).
-
-    // Alternative: We inject the data into context if the user asks for it? No, that's not agentic.
-
-    // Decision: I will keep the tool definitions. If the model generates a tool_call, 
-    // the current UI might just show the JSON. 
-    // To make it work seamlessly, we need to handle the tool execution server side.
-
-    // Let's wrap the stream in a handler that checks for tool calls? 
-    // Since `OpenAIStream` basically pipes the chunks, we can't easily intercept a full JSON object in the stream without buffering.
-
-    // COMPROMISE FOR MPV STABILITY:
-    // I will NOT pass `tools` to the stream call yet because handling the callback loop in the legacy SDK is complex entirely server-side.
-    // Instead, I will give the Agent a "Tool Helper" in the system prompt that says:
-    // "To access Shopify, write a special block: [[TOOL:get_products(limit=5)]]".
-    // Then we can parse that? No, that's hacky.
-
-    // Let's try the cleanest way: `experimental_onToolCall`.
-
     return OpenAIStream(response as any, {
         experimental_onToolCall: async (call: any, { messages }: any) => {
-            // This callback allows handling the tool call on the server
-            const toolName = call.tool.name;
-            const args = call.tool.arguments;
+            // Handle OpenAI tool call structure: { id, type, function: { name, arguments } }
+            const toolName = call.function?.name || call.tool?.name || call.name;
 
-            let result = '';
-            if (toolName === 'get_products') {
-                result = JSON.stringify(await getProducts(args.limit));
-            } else if (toolName === 'get_latest_orders') {
-                result = JSON.stringify(await getLatestOrders(args.limit));
-            } else if (toolName === 'get_shop_stats') {
-                result = JSON.stringify(await getShopStats());
+            if (!toolName) {
+                console.error('Unknown tool call structure:', call);
+                return 'Error: Could not determine tool name';
             }
 
-            // Return the result to be appended to messages and re-run LLM
+            // Arguments parsing
+            let args = call.function?.arguments || call.tool?.arguments || call.arguments || {};
+            if (typeof args === 'string') {
+                try {
+                    args = JSON.parse(args);
+                } catch (e) {
+                    console.error('Failed to parse tool arguments:', e);
+                    return 'Error: Invalid tool arguments';
+                }
+            }
+
+            let result = '';
+            try {
+                if (toolName === 'get_products') {
+                    result = JSON.stringify(await getProducts(args.limit));
+                } else if (toolName === 'get_latest_orders') {
+                    result = JSON.stringify(await getLatestOrders(args.limit));
+                } else if (toolName === 'get_shop_stats') {
+                    result = JSON.stringify(await getShopStats());
+                } else {
+                    result = `Error: Tool ${toolName} not found`;
+                }
+            } catch (err: any) {
+                console.error(`Tool execution failed (${toolName}):`, err);
+                result = `Error executing tool: ${err.message}`;
+            }
+
             return result;
+        },
+        onCompletion: async (completion) => {
+            if (lastUserMessage && completion && userId) {
+                try {
+                    await rememberInteraction(userId, lastUserMessage, completion, 'technical_agent');
+                } catch (e) {
+                    console.error('Failed to save memory:', e);
+                }
+            }
         }
     });
 }
