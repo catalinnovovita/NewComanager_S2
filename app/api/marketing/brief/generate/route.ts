@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/auth-options';
 import { PrismaClient } from '@prisma/client';
-import { saveToContextMemory } from '@/lib/vector-store';
+import { addMemory } from '@/lib/vector-store';
 import { openai } from '@/lib/openai';
 
 export const dynamic = 'force-dynamic';
@@ -97,10 +97,10 @@ Provide strategy, recommended channels (as array), timeline, and measurable KPIs
               data: briefData,
             });
 
-            await saveToContextMemory(
+            await addMemory(
               (session.user as any).id,
-              'brief',
-              `${objective} - ${targetAudience}`,
+              `${objective} - ${targetAudience}`, // contentText
+              'brief', // contentType - REORDERED
               { briefId: brief.id }
             );
 
