@@ -42,23 +42,56 @@ function getPackageContext(): string {
         .join(', ');
 
       return `Detected Stack: ${filteredDeps}`;
-
-      // ... (skipping unchanged lines in thought, verify locally) - I will use specific chunks
-
-    } catch (error) {
-      return '// Error reading package context';
     }
+    return '// package.json not found';
+  } catch (error) {
+    return '// Error reading package context';
   }
+}
 
-// ...
+/**
+ * Scans key directories to give the agent a map of the project structure.
+ */
+function getProjectStructure(): string {
+  try {
+    const appPath = path.join(process.cwd(), 'app');
+    if (!fs.existsSync(appPath)) return '// app/ directory not found';
+
+    // Helper to get recursive structure (limited depth)
+    const getStructure = (dir: string, depth: number = 0): string[] => {
+      if (depth > 2) return []; // Limit depth
+
+      const items = fs.readdirSync(dir, { withFileTypes: true });
+      let lines: string[] = [];
+
+      for (const item of items) {
+        if (item.name.startsWith('.') || item.name === 'node_modules') continue;
+
+        const relativePath = path.relative(process.cwd(), path.join(dir, item.name));
 
         if (item.isDirectory()) {
-    lines.push(`- ${relativePath}/`);
-    lines = [...lines, ...getStructure(path.join(dir, item.name), depth + 1)];
-  } else if (item.name.endsWith('page.tsx') || item.name.endsWith('layout.tsx') || item.name.endsWith('route.ts')) {
-    lines.push(`- ${relativePath}`);
+          lines.push(`- ${relativePath}/`);
+          lines = [...lines, ...getStructure(path.join(dir, item.name), depth + 1)];
+        } else if (item.name.endsWith('page.tsx') || item.name.endsWith('layout.tsx') || item.name.endsWith('route.ts')) {
+          lines.push(`- ${relativePath}`);
+        }
+      }
+      return lines;
+    };
+
+    const structure = getStructure(appPath);
+    return structure.join('\n');
+
+  } catch (error) {
+    return '// Error reading project structure';
   }
-  // ...
+}
+
+export async function constructProjectContext(): Promise<string> {
+  const schema = getDatabaseSchema();
+  const deps = getPackageContext();
+  const structure = getProjectStructure();
+
   return `
 === ACTIVE PROJECT CONTEXT ===
 
