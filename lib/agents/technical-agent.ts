@@ -40,5 +40,5 @@ export async function streamTechnicalChat(messages: any[]) {
         temperature: 0.2, // Lower temperature for more precise technical output
     });
 
-    return OpenAIStream(response);
+    return OpenAIStream(response as any);
 }
