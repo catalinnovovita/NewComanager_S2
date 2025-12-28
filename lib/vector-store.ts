@@ -1,80 +1,80 @@
-// Vector store utilities for semantic search using native PostgreSQL pgvector
-import { PrismaClient, Prisma } from '@prisma/client';
-import { generateEmbedding } from './openai';
+import { prisma } from '@/lib/prisma';
+import { generateEmbedding } from '@/lib/openai';
 
-const prisma = new PrismaClient();
-
-export async function saveToContextMemory(
+/**
+ * Stores a new piece of context memory.
+ * Generates an embedding for the text and saves it to the database.
+ */
+export async function addMemory(
   userId: string,
-  contentType: string,
   contentText: string,
-  metadata?: Record<string, any>
+  contentType: string,
+  metadata: any = {}
 ) {
   try {
-    const embeddingVector = await generateEmbedding(contentText);
+    const embedding = await generateEmbedding(contentText);
 
-    // Use raw SQL to insert vector data since Prisma support is experimental
+    // Prisma doesn't support vector types natively in the Client yet for writing easily
+    // We use a raw query or just rely on the fact that we defined it as Unsupported
+    // Wait, for creating we can't easily pass the vector string to standard create method if it's Unsupported
+    // We must use $executeRaw for the insert to cast the vector.
+
+    const embeddingString = `[${embedding.join(',')}]`;
+
+    // Using raw query to insert vector data safely
     await prisma.$executeRaw`
-      INSERT INTO "ContextMemory" ("id", "userId", "contentType", "contentText", "embedding", "metadata", "createdAt")
-      VALUES (
-        gen_random_uuid()::text,
-        ${userId},
-        ${contentType},
-        ${contentText},
-        ${embeddingVector}::vector,
-        ${metadata}::jsonb,
-        NOW()
-      )
+      INSERT INTO "ContextMemory" ("id", "userId", "contentText", "contentType", "metadata", "embedding", "createdAt")
+      VALUES (gen_random_uuid(), ${userId}, ${contentText}, ${contentType}, ${metadata}::jsonb, ${embeddingString}::vector, NOW());
     `;
 
-    return { success: true };
+    console.log(`Memory stored for user ${userId}: ${contentType}`);
+    return true;
   } catch (error) {
-    console.error('Error saving to context memory:', error);
-    throw error;
+    console.error('Error storing memory:', error);
+    return false;
   }
 }
 
-export async function searchContextMemory(
+/**
+ * Finds relevant memories similar to the query text.
+ * Uses Cosine Similarity (<=> operator in pgvector, or <-> for L2 distance).
+ * We typically use <=> (cosine distance) for text embeddings.
+ */
+export async function findSimilarMemories(
   userId: string,
-  query: string,
-  contentType?: string,
-  limit: number = 5
+  queryText: string,
+  limit: number = 5,
+  similarityThreshold: number = 0.5 // Adjust based on needs
 ) {
   try {
-    const queryEmbedding = await generateEmbedding(query);
+    const queryEmbedding = await generateEmbedding(queryText);
     const vectorString = `[${queryEmbedding.join(',')}]`;
 
-    // Use raw SQL for cosine similarity search
-    // The <-> operator returns the cosine distance (0 = identical, 2 = opposite)
+    // Perform vector similarity search
+    // We select items where the distance is small (meaning high similarity)
+    // Note: Cosine distance ranges from 0 (identical) to 2 (opposite).
+    // We want distance < 1 - threshold basically.
 
-    // Construct the query parts safely
-    const contentTypeClause = contentType
-      ? Prisma.sql`AND "contentType" = ${contentType}`
-      : Prisma.empty;
-
-    const memories = await prisma.$queryRaw`
-      SELECT 
-        id, 
-        "contentType", 
-        "contentText", 
-        metadata, 
-        1 - (embedding <=> ${vectorString}::vector) as similarity
+    const results = await prisma.$queryRaw`
+      SELECT id, "contentText", "contentType", "createdAt", 
+             1 - ("embedding" <=> ${vectorString}::vector) as similarity
       FROM "ContextMemory"
       WHERE "userId" = ${userId}
-      ${contentTypeClause}
-      ORDER BY embedding <=> ${vectorString}::vector ASC
-      LIMIT ${limit}
+      AND 1 - ("embedding" <=> ${vectorString}::vector) > ${similarityThreshold}
+      ORDER BY similarity DESC
+      LIMIT ${limit};
     `;
 
-    return memories as Array<{
+    return results as Array<{
       id: string;
-      contentType: string;
       contentText: string;
-      metadata: any;
+      contentType: string;
+      createdAt: Date;
       similarity: number;
     }>;
+
   } catch (error) {
-    console.error('Error searching context memory:', error);
+    console.error('Error finding similar memories:', error);
     return [];
   }
 }
