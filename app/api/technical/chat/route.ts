@@ -14,7 +14,7 @@ export async function POST(req: Request) {
 
         const { messages } = await req.json();
 
-        const stream = await streamTechnicalChat(messages);
+        const stream = await streamTechnicalChat(messages, session.user.id);
 
         return new StreamingTextResponse(stream);
     } catch (error) {
